@@ -1,51 +1,82 @@
 # SOLARIS
+## Cross-Asset Pair Trading: Multi-Criteria Selection Framework
 
-## Cross-Asset Pair Trading: Multi-Criteria Selection Framework (SOLARIS)
+This repository contains the Python framework developed for empirical computations and validation of the research paper:
 
-This repository contains the Python framework developed for empirical computations and validation of the research paper:  
-**"Cross-Asset Pair Trading: A Multi-Criteria Selection Framework Using Cointegration, Mean Reversion, and Walk-Forward Validation"** *Prague University of Economics and Business (VŠE Praha)*
+> **"Cross-Asset Pair Trading: A Multi-Criteria Selection Framework Using Cointegration, Mean Reversion, and Walk-Forward Validation"**
+> Prague University of Economics and Business (VŠE Praha)
 
-The framework expands upon previous sector-equity models by implementing a multi-criteria selection pipeline for cross-asset pairs (Analyzing Stocks, FX, Gold, and Cryptocurrencies) validated via a rolling Walk-Forward framework.
+The framework implements a multi-criteria statistical pipeline for cross-asset pairs (S&P 500 Equities, FX, Commodities, and Cryptocurrencies), validated via a rolling Walk-Forward framework.
 
 ---
 
 ## Repository Structure
 
-* `CSV/` — Contains configuration files, including `settings.csv` (thresholds and execution parameters), `TICKERS.csv`, and the generated `schedule.csv`.
-* `DATA/` — Storage for preprocessed, synchronized, and cleaned price data across all asset classes (`EQUITY.xlsx`, `CRYPTO.xlsx`, `FOREX.xlsx`, `COMODITIES.xlsx`).
-* `OUTPUT/` — Target directory for independent, timestamped simulation runs containing In-Sample and Out-of-Sample results.
+```
+SOLARIS/
+├── CSV/
+│   ├── TICKERS.csv                ← asset tickers by class (EQUITY, CRYPTO, FOREX, COMODITIES)
+│   ├── settings.csv               ← thresholds and execution parameters
+│   └── schedule.csv               ← generated walk-forward schedule
+├── DATA/
+│   ├── EQUITY.xlsx                ← raw equity price data
+│   ├── CRYPTO.xlsx                ← raw crypto price data
+│   ├── FOREX.xlsx                 ← raw FX price data
+│   ├── COMODITIES.xlsx            ← raw commodities price data
+│   ├── FULL_Forward_Fill.xlsx     ← merged (outer join, all calendar days)
+│   └── FULL_Trading_Calendar.xlsx ← merged (left join, equity trading days only)
+├── OUTPUT/                        ← timestamped simulation runs (IS + OOS results)
+├── SCHEDULE.ipynb                 ← walk-forward schedule generator
+├── LOADER.ipynb                   ← main ETL pipeline
+└── README.md
+```
 
 ---
 
-## Core Scripts Description
+## Asset Universe
 
-### 1. SCHEDULE.ipynb (Walk-Forward Schedule Generator)
-* **Purpose:** Establishes the temporal framework for the rolling backtest. It segments the historical data into sequential, non-overlapping evaluation slices to mathematically eliminate look-ahead bias during the optimization phase.
-* **Mechanism:** Accepts dynamic user inputs via `input()` for the target chronological range (`start`/`end` years) and the training window depth (`is_window` in months). It computes the precise `OOS_START` and `OOS_END` for each month (handling leap years via `calendar.monthrange`), and then maps the corresponding historical `In-Sample` anchors.
-* **Output:** Exports a structured matrix to `CSV/schedule.csv` using a semicolon (`;`) delimiter.
-
-### 2. LOADER.ipynb (Multi-Asset ETL Pipeline)
-* **Purpose:** Functions as the primary ETL (Extract, Transform, Load) engine designed to fetch cross-asset market data, resolve structural data discrepancies, and standardize heterogeneous trading calendars.
-* **Mechanism:** * Parses `CSV/TICKERS.csv` using `keep_default_na=False` to prevent empty fields from being misinterpreted as NaN values.
-  * Adjusts corporate equity equity tickers to match corporate mapping syntax (e.g., converting S&P 500 dot notation to Yahoo Finance dash format).
-  * Implements token trimming (`.strip()`) to isolate raw ticker strings from accidental Whitespace padding.
-  * Transforms raw index timestamps into atomic ISO dates (`YYYY-MM-DD`), laying the groundwork for mathematical alignment between 24/7 digital asset markets and standard weekday exchange sessions.
-* **Output:** Generates four independent binary Excel sheets inside the `DATA/` directory: `EQUITY.xlsx`, `CRYPTO.xlsx`, `FOREX.xlsx`, and `COMODITIES.xlsx`.
+| Class | Tickers | Source |
+|-------|---------|--------|
+| Equity | ~500 S&P 500 constituents | yfinance |
+| Crypto | BTC-USD, ETH-USD | yfinance |
+| FX | EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CHF | yfinance |
+| Commodities | GLD, SLV | yfinance |
 
 ---
 
-## Pipeline & Project Roadmap
+## Cross-Asset Pair Structure
 
-- [x] **Phase 1: Walk-Forward Schedule Generator (SCHEDULE)** Generates rolling, non-overlapping In-Sample and Out-of-Sample evaluation intervals (`CSV/schedule.csv`) based on user-defined window lengths to prevent look-ahead bias.
+|  | Equity | Crypto | FX | Commodities |
+|--|:--:|:--:|:--:|:--:|
+| **Equity** | ❌ | ✅ | ✅ | ✅ |
+| **Crypto** | | ❌ | ✅ | ✅ |
+| **FX** | | | ❌ | ✅ |
+| **Commodities** | | | | ❌ |
 
-- [x] **Phase 2: Data Loader & Preprocessor (LOADER)** * **API Ingestion:** Multi-threaded historical data harvesting via `yfinance` API for S&P 500 equities, Forex pairs, precious metals, and major cryptocurrencies spanning 11 years (2015–2025).
-  * **Data Hygiene:** Built-in sanitization for asset-specific ticker syntax (e.g., automated conversion of `BRK.B` dots to `BRK-B` dashes) and string formatting (`.strip()`).
-  * **Calendar Standardization:** Index-level timestamp normalization converting datetime strings to clean ISO dates (`.date`).
+---
 
-- [ ] **Phase 3: In-Sample (IS) Engine** * Cross-asset pair construction (Stock–Gold, Crypto–Stock, FX–Commodity).
-  * Statistical pipeline: ADF, Engle-Granger cointegration, OLS Hedge Ratio, Half-Life of mean reversion, and Hurst exponent.
-  * Multi-criteria filtering based on thresholds from `CSV/settings.csv`.
+## Scripts
 
-- [ ] **Phase 4: Out-of-Sample (OOS) Backtest** * Forward performance simulation using rolling Z-score entry/exit rules and time-stops.
-  * Beta-neutral and Dollar-neutral capital allocation regimes.
-  * Performance logging (Sharpe ratio, Max Drawdown, Profit Factor, Turnover) exported to `OUTPUT/`.
+### 1. SCHEDULE.ipynb — Walk-Forward Schedule Generator
+Generates sequential, non-overlapping IS/OOS evaluation windows to eliminate look-ahead bias.
+- **Inputs:** start year, end year, IS window length (months)
+- **Output:** `CSV/schedule.csv`
+
+### 2. LOADER.ipynb — Multi-Asset ETL Pipeline
+Fetches cross-asset market data, resolves structural discrepancies, and standardizes trading calendars.
+- Parses `CSV/TICKERS.csv` with `keep_default_na=False`
+- Converts `BRK.B` → `BRK-B` for yfinance compatibility
+- Applies `.strip()` to remove whitespace from tickers
+- Normalizes timestamps to ISO format (`YYYY-MM-DD`)
+- Produces two calendar-aligned master files: forward-fill and trading-calendar versions
+
+---
+
+## Pipeline
+
+```
+Phase 1 — SCHEDULE                    ✅ done
+Phase 2 — LOADER                      ✅ done
+Phase 3 — IS Engine                   🔧 in development
+Phase 4 — OOS Backtest                🔧 in development
+```
