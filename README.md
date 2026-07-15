@@ -1,6 +1,6 @@
 # SOLARIS
 
-![SOLARIS](COVER.jpg)
+<img src="COVER.jpg" alt="SOLARIS" width="420">
 
 ## Cross-Asset Pair Trading: Multi-Criteria Selection Framework
 
