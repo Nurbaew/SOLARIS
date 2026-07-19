@@ -29,7 +29,7 @@ SOLARIS/
 │   ├── FULL_Forward_Fill.xlsx     ← merged (outer join, all calendar days)
 │   ├── FULL_Trading_Calendar.xlsx ← merged (left join, equity trading days only)
 │   └── Output/
-│       └── {scenario_name}/{scenario_name}.xlsx  ← IS-Engine results, one file per scenario run
+│       └── {scenario_name}/IS_{scenario_name}.xlsx  ← IS-Engine results, one file per scenario run
 ├── SCHEDULE.ipynb                 ← walk-forward schedule generator
 ├── LOADER.ipynb                   ← main ETL pipeline
 ├── IS-Engine.ipynb                ← in-sample pair selection (4-filter funnel)
@@ -86,18 +86,21 @@ Funnel of four independent filter functions, run for every window in `schedule.c
 3. `filter_half_life()` — Half-Life of mean reversion (Chan, 2013); also stores the OLS hedge ratio (`Beta`, `Intercept`) used to build the spread
 4. `filter_hurst()` — generalized Hurst exponent (variance-of-lags method, Chan 2013), confirms H < 0.5
 
-Thresholds and the active scenario name are read from `CSV/settings.csv`. Output columns: `Iteration, Asset_A, Asset_B, Type_A, Type_B, Pearson_Corr, P_Value, Half_Life, Beta, Intercept, Hurst`, saved to `DATA/Output/{scenario_name}/{scenario_name}.xlsx` — `Beta`/`Intercept` let the OOS engine reconstruct the same spread without retraining.
+Thresholds and the active scenario name are read from `CSV/settings.csv`. Output file `DATA/Output/{scenario_name}/IS_{scenario_name}.xlsx` has three sheets:
+- `Results` — selected pairs: `Iteration, Asset_A, Asset_B, Type_A, Type_B, Pearson_Corr, P_Value, Half_Life, Beta, Intercept, Hurst` (`Beta`/`Intercept` let the OOS engine reconstruct the same spread without retraining)
+- `Funnel_Summary` — average pairs surviving each filter stage, aggregated across all iterations
+- `Funnel_Per_Iteration` — same funnel breakdown per individual walk-forward iteration
 
-**Presets** (thresholds calibrated on real IS-window data; `min_correlation`/`p_value` grounded in Liu, `Half_Life`/`Hurst` bounds in Chan):
+**Presets** (5 levels, named after the thesis's own PURE/EASY/MEDIUM/HARD/ULTRA scale; thresholds are our own — calibrated on real IS-window data, `min_correlation`/`p_value` grounded in Liu, `Half_Life`/`Hurst` bounds in Chan):
 
-| Parameter | EASY | MEDIUM | HARD |
-|---|---|---|---|
-| min_correlation | 0.10 | 0.20 | 0.30 |
-| p_value | 0.10 | 0.05 | 0.01 |
-| min_half_life | 1 | 2 | 3 |
-| max_half_life | 15 | 11 | 8 |
-| min_hurst | 0 | 0 | 0 |
-| max_hurst | 0.40 | 0.35 | 0.28 |
+| Parameter | PURE | EASY | MEDIUM | HARD | ULTRA |
+|---|---|---|---|---|---|
+| min_correlation | 0.10 | 0.15 | 0.20 | 0.25 | 0.30 |
+| p_value | 0.10 | 0.075 | 0.05 | 0.025 | 0.01 |
+| min_half_life | 1 | 1.5 | 2 | 2.5 | 3 |
+| max_half_life | 15 | 13 | 11 | 9 | 8 |
+| min_hurst | 0 | 0 | 0 | 0 | 0 |
+| max_hurst | 0.40 | 0.37 | 0.35 | 0.31 | 0.28 |
 
 ---
 

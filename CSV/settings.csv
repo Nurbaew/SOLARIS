@@ -1,8 +1,8 @@
 Parameter;Value
-scenario_name;EASY
-min_correlation;0.10
-p_value;0.1
-min_half_life;1
-max_half_life;15
+scenario_name;ULTRA
+min_correlation;0.30
+p_value;0.01
+min_half_life;3
+max_half_life;8
 min_hurst;0
-max_hurst;0.40
+max_hurst;0.28
