@@ -42,10 +42,12 @@ SOLARIS/
 
 | Class | Tickers | Source |
 |-------|---------|--------|
-| Equity | ~500 S&P 500 constituents | yfinance |
-| Crypto | BTC-USD, ETH-USD, SOL-USD | yfinance |
-| FX | EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CAD | yfinance |
-| Commodities | GC=F (Gold), SI=F (Silver) | yfinance |
+| Equity | 503 S&P 500 constituents | yfinance |
+| Crypto | BTC-USD, ETH-USD, SOL-USD, XRP-USD, LTC-USD, DOGE-USD, ADA-USD, BNB-USD | yfinance |
+| FX | EUR/USD, GBP/USD, USD/JPY, AUD/USD, USD/CAD, USD/CHF, NZD/USD, EUR/GBP, EUR/JPY | yfinance |
+| Commodities | GC=F (Gold), SI=F (Silver), PL=F (Platinum), PA=F (Palladium), HG=F (Copper) | yfinance |
+
+525 tickers total. Note: some crypto tickers have shorter history on Yahoo Finance than the 2015 dataset start — BTC/LTC go back to 2015, ETH/XRP/ADA/DOGE/BNB start 2017-11-09, SOL starts 2020-04-10. Windows before an asset's start date simply exclude it (handled by `dropna` in `filter_correlation()`).
 
 ---
 
