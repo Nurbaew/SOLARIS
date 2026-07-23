@@ -19,7 +19,8 @@ The framework implements a multi-criteria statistical pipeline for cross-asset p
 SOLARIS/
 ├── CSV/
 │   ├── Tickers.csv                ← asset tickers by class (EQUITY, CRYPTO, FOREX, COMODITIES)
-│   ├── settings.csv               ← active scenario + filter thresholds
+│   ├── settings.csv               ← active IS scenario + filter thresholds
+│   ├── settings_oos.csv           ← active OOS scenario + trading/positioning parameters
 │   └── schedule.csv               ← generated walk-forward schedule
 ├── DATA/
 │   ├── EQUITY.xlsx                ← raw equity price data
@@ -29,10 +30,14 @@ SOLARIS/
 │   ├── FULL_Forward_Fill.xlsx     ← merged (outer join, all calendar days)
 │   ├── FULL_Trading_Calendar.xlsx ← merged (left join, equity trading days only)
 │   └── Output/
-│       └── {scenario_name}/IS_{scenario_name}.xlsx  ← IS-Engine results, one file per scenario run
+│       └── {IS_scenario}/
+│           ├── IS_{IS_scenario}.xlsx           ← IS-Engine results, one file per scenario run
+│           └── {z_window}/
+│               └── OOS_{OOS_scenario}.xlsx     ← OOS-Engine results, one file per (IS scenario, z_window, OOS scenario)
 ├── SCHEDULE.ipynb                 ← walk-forward schedule generator
 ├── LOADER.ipynb                   ← main ETL pipeline
 ├── IS-Engine.ipynb                ← in-sample pair selection (4-filter funnel)
+├── OOS-Engine.ipynb               ← out-of-sample walk-forward backtest engine
 └── README.md
 ```
 
@@ -104,6 +109,28 @@ Thresholds and the active scenario name are read from `CSV/settings.csv`. Output
 | min_hurst | 0 | 0 | 0 | 0 | 0 |
 | max_hurst | 0.40 | 0.37 | 0.35 | 0.31 | 0.28 |
 
+### 4. OOS-Engine.ipynb — Out-of-Sample Walk-Forward Backtest
+Day-by-day simulation over the pairs selected by IS-Engine, run separately for every walk-forward iteration in `schedule.csv`.
+
+- **Positioning:** beta-neutral by default (`Qty_B = |Beta| × Qty_A`, using the hedge ratio stored by IS-Engine); dollar-neutral available as a toggle (`positioning_mode`) for ablation testing.
+- **Entry:** rolling Z-score of the spread (`z_window` days, continuous — not reset at month boundaries), entry when `|z| > z_entry` and a slot is free (`max_open_pairs`).
+- **Exit:** convergence (`|z| <= z_exit`) or time-based stop-loss (`duration > half_life × hl_multiplier`); a pair that times out is banned from re-entry until `|z|` returns to `z_exit`.
+- **Trailing tail:** after the last scheduled iteration, the engine keeps simulating (no new entries) until every open position closes naturally, instead of cutting off at an arbitrary date.
+- **Guard rail:** a minimum hedge-ratio check (`min_hedge_ratio_pct`) rejects near-degenerate hedges where one leg's notional is negligible relative to the other (matters for extreme cross-asset beta values, e.g. altcoin vs. large-cap equity).
+
+Thresholds and the active scenario are read from `CSV/settings_oos.csv`. Output file `DATA/Output/{IS_scenario}/{z_window}/OOS_{OOS_scenario}.xlsx` has five sheets: `OOS_Trades`, `Yearly_Stats`, `Summary`, `Exit_Analysis`, `Open_Positions`.
+
+**Presets** (5 levels, separate axis from the IS presets above — these control trading strictness, not pair-selection strictness):
+
+| Parameter | PURE | EASY | MEDIUM | HARD | ULTRA |
+|---|---|---|---|---|---|
+| z_entry | 1.5 | 1.75 | 2.0 | 2.25 | 2.5 |
+| z_exit | 0.75 | 0.5 | 0.25 | 0.1 | 0 |
+| hl_multiplier | 4.0 | 3.25 | 2.5 | 1.75 | 1.0 |
+| max_open_pairs | 15 | 12 | 10 | 7 | 5 |
+
+Full evaluation matrix: 5 IS presets × 5 OOS presets × 2 z-windows (30, 60) = 50 runs, plus a dollar-neutral ablation run on selected configurations.
+
 ---
 
 ## Pipeline
@@ -112,5 +139,7 @@ Thresholds and the active scenario name are read from `CSV/settings.csv`. Output
 Phase 1 — SCHEDULE                    ✅ done
 Phase 2 — LOADER                      ✅ done
 Phase 3 — IS Engine                   ✅ done (Correlation → Cointegration → Half-Life → Hurst)
-Phase 4 — OOS Backtest                🔧 not started
+Phase 4 — OOS Engine                  ✅ done (beta-neutral walk-forward backtest, trailing tail)
+Phase 5 — Full IS × OOS grid          ✅ done (25 configurations × z_window=60; robustness check on z_window=30)
+Phase 6 — Article writeup             🔧 in progress
 ```
